@@ -1470,3 +1470,14 @@ void udc_pins_setting(void)
 
 }
 #endif
+
+
+
+void func_27800ebc(int a)
+{
+
+}
+
+
+
+

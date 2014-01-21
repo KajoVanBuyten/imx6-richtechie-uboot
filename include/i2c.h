@@ -151,6 +151,8 @@ int i2c_probe(uchar chip);
 int i2c_read(uchar chip, uint addr, int alen, uchar *buffer, int len);
 int i2c_write(uchar chip, uint addr, int alen, uchar *buffer, int len);
 
+int rt_i2c_write(uchar chip, uint addr, int alen, uchar *buf, int len);
+
 /*
  * Utility routines to read/write registers.
  */

@@ -91,6 +91,7 @@
 #define CONFIG_BOOTP_DNS
 
 #define CONFIG_CMD_SPI
+#define CONFIG_CMD_I2C
 #define CONFIG_CMD_IMXOTP
 
 /* Enable below configure when supporting nand */
@@ -104,7 +105,7 @@
 /* #define CONFIG_CMD_SATA */
 #undef CONFIG_CMD_IMLS
 
-#define CONFIG_BOOTDELAY 0
+#define CONFIG_BOOTDELAY 10
 
 #define CONFIG_PRIME	"FEC0"
 
@@ -144,6 +145,10 @@
 #define CONFIG_SYS_HZ			1000
 
 #define CONFIG_CMDLINE_EDITING
+#define CONFIG_SYS_HUSH_PARSER		1 /* Use the HUSH parser */
+#ifdef	CONFIG_SYS_HUSH_PARSER
+#define	CONFIG_SYS_PROMPT_HUSH_PS2	"> "
+#endif
 
 #define CONFIG_FEC0_IOBASE	ENET_BASE_ADDR
 #define CONFIG_FEC0_PINMUX	-1
@@ -176,8 +181,8 @@
 	#define CONFIG_HARD_I2C         1
 	#define CONFIG_I2C_MXC          1
 	#define CONFIG_SYS_I2C_PORT             I2C3_BASE_ADDR
-	#define CONFIG_SYS_I2C_SPEED            100000
-	#define CONFIG_SYS_I2C_SLAVE            0x1f
+	#define CONFIG_SYS_I2C_SPEED            10000
+	#define CONFIG_SYS_I2C_SLAVE            0x10
 #endif
 
 /*
@@ -276,13 +281,30 @@
 #define CONFIG_SYS_NO_FLASH
 
 /* Monitor at beginning of flash */
-/* #define CONFIG_FSL_ENV_IN_MMC */
+//#define CONFIG_FSL_ENV_IN_MMC
 /* #define CONFIG_FSL_ENV_IN_NAND */
 /* #define CONFIG_FSL_ENV_IN_SATA */
 
 #define CONFIG_ENV_SECT_SIZE    (128 * 1024)
 #define CONFIG_ENV_SIZE         CONFIG_ENV_SECT_SIZE
-#define CONFIG_ENV_IS_NOWHERE   1
+
+#if defined(CONFIG_FSL_ENV_IN_NAND)
+	#define CONFIG_ENV_IS_IN_NAND 1
+	#define CONFIG_ENV_OFFSET	0x100000
+#elif defined(CONFIG_FSL_ENV_IN_MMC)
+	#define CONFIG_ENV_IS_IN_MMC	1
+	#define CONFIG_ENV_OFFSET	(768 * 1024)
+#elif defined(CONFIG_FSL_ENV_IN_SATA)
+	#define CONFIG_ENV_IS_IN_SATA   1
+	#define CONFIG_SATA_ENV_DEV     0
+	#define CONFIG_ENV_OFFSET       (768 * 1024)
+#elif defined(CONFIG_FSL_ENV_IN_SF)
+	#define CONFIG_ENV_IS_IN_SPI_FLASH	1
+	#define CONFIG_ENV_SPI_CS		1
+	#define CONFIG_ENV_OFFSET       (768 * 1024)
+#else
+	#define CONFIG_ENV_IS_NOWHERE	1
+#endif
 
 #define CONFIG_SPLASH_SCREEN
 
@@ -308,4 +330,32 @@
 	#define IMX_PWM1_BASE    PWM1_BASE_ADDR
 	#define IMX_PWM2_BASE    PWM2_BASE_ADDR
 #endif
+
+#if 0
+#define CONFIG_ANDROID_RECOVERY
+#define CONFIG_ANDROID_RECOVERY_BOOTARGS_MMC NULL
+#define CONFIG_ANDROID_RECOVERY_BOOTCMD_MMC  \
+	"booti mmc2 recovery"
+#endif
+
+#if 0
+#define CONFIG_FASTBOOT		       1
+#define CONFIG_FASTBOOT_STORAGE_EMMC_SATA
+#define CONFIG_FASTBOOT_VENDOR_ID      0x18d1
+#define CONFIG_FASTBOOT_PRODUCT_ID     0x0d02
+#define CONFIG_FASTBOOT_BCD_DEVICE     0x311
+#define CONFIG_FASTBOOT_MANUFACTURER_STR  "Freescale"
+#define CONFIG_FASTBOOT_PRODUCT_NAME_STR "i.mx6q HDMI Dongle"
+#define CONFIG_FASTBOOT_INTERFACE_STR	 "Android fastboot"
+#define CONFIG_FASTBOOT_CONFIGURATION_STR  "Android fastboot"
+#define CONFIG_FASTBOOT_SERIAL_NUM	"12345"
+#define CONFIG_FASTBOOT_SATA_NO		 0
+#define CONFIG_FASTBOOT_TRANSFER_BUF	0x2c000000
+#define CONFIG_FASTBOOT_TRANSFER_BUF_SIZE 0x14000000 /* 320M byte */
+
+#define CONFIG_ANDROID_BOOT_PARTITION_MMC 1
+#define CONFIG_ANDROID_SYSTEM_PARTITION_MMC 5
+#define CONFIG_ANDROID_RECOVERY_PARTITION_MMC 2
+#endif
+
 #endif				/* __CONFIG_H */

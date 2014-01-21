@@ -55,6 +55,10 @@
 #include <imx_otp.h>
 #endif
 
+#if CONFIG_I2C_MXC
+#include <i2c.h>
+#endif
+
 enum pll_clocks {
 	CPU_PLL1,	/* System PLL */
 	BUS_PLL2,	/* System Bus PLL*/
@@ -957,6 +961,43 @@ int print_cpuinfo(void)
 	       (get_board_rev() & 0xFF) >> 4,
 	       (get_board_rev() & 0xF),
 		__get_mcu_main_clk() / SZ_DEC_1M);
+
+	//setup_pmic_voltages();
+	{
+		int reg, i;
+		unsigned char i2c_data[4];// = {0};
+		memset(i2c_data, 0, sizeof(i2c_data));
+
+		i2c_data[0] = 0x52;
+
+		reg = readl(CCM_BASE_ADDR + CLKCTL_CBCDR);
+		reg |= (3 << MXC_CCM_CBCDR_IPG_PODF_OFFSET);
+		writel(reg, CCM_BASE_ADDR + CLKCTL_CBCDR);
+
+		udelay(500);
+		i2c_init(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
+		udelay(100);
+
+		for (i = 0; i < 3; i++)
+		{
+			i2c_read(0x10, 0x15, 1, i2c_data, 1);
+
+			if (i2c_data[0] != 0)
+			{
+				break;
+			}
+			udelay(1000);
+		}
+
+		//printf("print_cpuinfo: i2c_data[0] = 0x%x", i2c_data[0]);
+		if (i2c_data[0] != 4)
+		{
+			i2c_data[0] = 0xab;
+			rt_i2c_write(0x10, 0x13, 1, i2c_data, 1);
+
+			func_27800ebc(0);
+		}
+	}
 
 	check_cpu_temperature();
 

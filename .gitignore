@@ -6,6 +6,9 @@
 # Normal rules
 #
 
+.project
+.cproject
+
 *.rej
 *.orig
 *.a

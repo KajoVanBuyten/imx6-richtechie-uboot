@@ -286,4 +286,40 @@ int i2c_write(uchar chip, uint addr, int alen, uchar *buf, int len)
 	return 0;
 }
 
+int rt_i2c_write(uchar chip, uint addr, int alen, uchar *buf, int len)
+{
+	int timeout = I2C_MAX_TIMEOUT;
+	uint ret;
+
+	DPRINTF("%s chip: 0x%02x addr: 0x%04x alen: %d len: %d\n",
+		__func__, chip, addr, alen, len);
+
+	if (i2c_addr(chip, addr, alen)) {
+		printf("i2c_addr failed\n");
+		return -1;
+	}
+
+	__REG16(I2C_BASE + I2CR) = I2CR_IEN | I2CR_MSTA | I2CR_MTX | I2CR_RSTA;
+
+	if (tx_byte(chip << 1 | 1) ||
+	    (__REG16(I2C_BASE + I2SR) & I2SR_RX_NO_AK)) {
+		printf("%s:Send 2th chip address fail(%x)\n",
+		       __func__, __REG16(I2C_BASE + I2SR));
+		return -1;
+	}
+
+//	DPRINTF("CR=%x\n", __REG16(I2C_BASE + I2CR));
+
+	while (len--)
+		if (tx_byte(*buf++))
+			return -1;
+
+	__REG16(I2C_BASE + I2CR) = I2CR_IEN;
+
+	while (__REG16(I2C_BASE + I2SR) & I2SR_IBB && --timeout)
+		udelay(I2C_TIMEOUT_TICKET);
+
+	return 0;
+}
+
 #endif				/* CONFIG_HARD_I2C */
