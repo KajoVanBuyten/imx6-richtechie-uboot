@@ -962,7 +962,6 @@ int print_cpuinfo(void)
 	       (get_board_rev() & 0xF),
 		__get_mcu_main_clk() / SZ_DEC_1M);
 
-	//setup_pmic_voltages();
 	{
 		int reg, i;
 		unsigned char i2c_data[4];// = {0};
@@ -1058,7 +1057,7 @@ int arch_cpu_init(void)
 	/* Increase the VDDSOC to 1.2V */
 	val = REG_RD(ANATOP_BASE_ADDR, HW_ANADIG_REG_CORE);
 	val &= ~BM_ANADIG_REG_CORE_REG2_TRG;
-	val |= BF_ANADIG_REG_CORE_REG2_TRG(0x14);
+	val |= BF_ANADIG_REG_CORE_REG2_TRG(0x12); //0x14);
 	REG_WR(ANATOP_BASE_ADDR, HW_ANADIG_REG_CORE, val);
 
 	/* Need to power down PCIe */

@@ -189,11 +189,6 @@ enum boot_device get_boot_device(void)
 
 u32 get_board_rev(void)
 {
-	
-	/* If unknown board type, set board type to 
-	RevB for HDMI Dongle board */
-	if(BOARD_REV_1 == (fsl_system_rev & 0x0F00))
-		fsl_system_rev |= BOARD_REV_3;
 	return fsl_system_rev;
 }
 
@@ -341,7 +336,7 @@ static void setup_uart(void)
 }
 
 #ifdef CONFIG_VIDEO_MX5
-static struct pwm_device pwm = {
+static struct pwm_device pwm = { //2782ad68
 		0, //unsigned long mmio_base;
 		0, //unsigned int pwm_id;
 		0, //int pwmo_invert;
@@ -802,16 +797,16 @@ s32 spi_get_cfg(struct imx_spi_dev_t *dev)
 	switch (dev->slave.cs) {
 	case 0:
 		/* SPI-NOR */
-		dev->base = ECSPI2_BASE_ADDR;
+		dev->base = ECSPI1_BASE_ADDR;
 		dev->freq = 25000000;
-		dev->ss_pol = IMX_SPI_ACTIVE_LOW;
+		dev->ss_pol = IMX_SPI_ACTIVE_HIGH;
 		dev->ss = 0;
 		dev->fifo_sz = 64 * 4;
 		dev->us_delay = 0;
 		break;
 	case 1:
 		/* SPI-NOR */
-		dev->base = ECSPI2_BASE_ADDR;
+		dev->base = ECSPI1_BASE_ADDR;
 		dev->freq = 25000000;
 		dev->ss_pol = IMX_SPI_ACTIVE_LOW;
 		dev->ss = 1;
@@ -830,23 +825,39 @@ void spi_io_init(struct imx_spi_dev_t *dev)
 	u32 reg;
 
 	switch (dev->base) {
-	case ECSPI2_BASE_ADDR:
+	case ECSPI1_BASE_ADDR:
+#if 0
 		/* Enable clock */
 		reg = readl(CCM_BASE_ADDR + CLKCTL_CCGR1);
 		reg |= 0xC;
 		writel(reg, CCM_BASE_ADDR + CLKCTL_CCGR1);
+#endif
 
 #if defined CONFIG_MX6Q
 		/* SCLK */
-		mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_CS0__ECSPI2_SCLK);
+		mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_D16__ECSPI1_SCLK);
+		//IOMUX_PAD(0x03A4, 0x0090, 1, 0x07F4, 0, 0) | MUX_PAD_CTRL(MX6Q_ECSPI_PAD_CTRL) = 020162 1 7f4 3a4 090
 
 		/* MISO */
-		mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_OE__ECSPI2_MISO);
+		mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_D17__ECSPI1_MISO);
+		//IOMUX_PAD(0x03A8, 0x0094, 1, 0x07F8, 0, 0) | MUX_PAD_CTRL(MX6Q_ECSPI_PAD_CTRL) = 020162 1 7f8 3a8 094
 
 		/* MOSI */
-		mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_CS1__ECSPI2_MOSI);
+		mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_D18__ECSPI1_MOSI);
+		//IOMUX_PAD(0x03AC, 0x0098, 1, 0x07FC, 0, 0) | MUX_PAD_CTRL(MX6Q_ECSPI_PAD_CTRL) = 020162 1 7fc 3ac 098
 
-		mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_RW__ECSPI2_SS0);
+//		mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_RW__ECSPI2_SS0);
+		switch (dev->ss)
+		{
+		case 0:
+			mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_EB2__ECSPI1_SS0);
+			//IOMUX_PAD(0x03A0, 0x008C, 1, 0x0800, 0, 0) | MUX_PAD_CTRL(MX6Q_ECSPI_PAD_CTRL) = 020162 1 800 3a0 08c
+			break;
+		case 1:
+			mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_D19__ECSPI1_SS1);
+			//IOMUX_PAD(0x03B0, 0x009C, 1, 0x0804, 0, 0) | MUX_PAD_CTRL(MX6Q_ECSPI_PAD_CTRL) = 020162 1 804 3b0 09c
+			break;
+		}
 #elif defined CONFIG_MX6DL
 		/* SCLK */
 		mxc_iomux_v3_setup_pad(MX6DL_PAD_EIM_OE__ECSPI2_MISO);
@@ -860,9 +871,9 @@ void spi_io_init(struct imx_spi_dev_t *dev)
 		mxc_iomux_v3_setup_pad(MX6DL_PAD_EIM_RW__ECSPI2_SS0);
 #endif
 		break;
-	case ECSPI1_BASE_ADDR:
+	case ECSPI2_BASE_ADDR:
 	case ECSPI3_BASE_ADDR:
-		/* ecspi1,3 fall through */
+		/* ecspi2,3 fall through */
 		break;
 	default:
 		break;
@@ -1240,32 +1251,81 @@ int board_init(void)
 #ifdef CONFIG_ANDROID_RECOVERY
 int check_recovery_cmd_file(void)
 {
-	int button_pressed = 0;
-	int recovery_mode = 0;
+	disk_partition_t info;
+	ulong part_length;
+	int filelen = 0;
+	int dev = 1;
+	char *env;
 
-	recovery_mode = check_and_clean_recovery_flag();
-
-	/* Check Recovery Combo Button press or not. */
-	mxc_iomux_v3_setup_pad(MX6X_IOMUX(PAD_ENET_RXD0__GPIO_1_27));
-
-	gpio_direction_input(GPIO_REVB_POWER_KEY);
-
-	if (gpio_get_value(GPIO_REVB_POWER_KEY) == 0) { /* VOL_DN key is low assert */
-		button_pressed = 1;
-		printf("Recovery key pressed\n");
+	/* For test only */
+	/* When detecting android_recovery_switch,
+	 * enter recovery mode directly */
+	env = getenv("android_recovery_switch");
+	if (!strcmp(env, "1")) {
+		printf("Env recovery detected!\nEnter recovery mode!\n");
+		return 1;
 	}
 
-	return recovery_mode || button_pressed;
+	printf("Checking for recovery command file...\n");
+	switch (get_boot_device()) {
+	case I2C_BOOT:
+	case SPI_NOR_BOOT:
+	case MMC_BOOT:
+	case SD_BOOT:
+		{
+			block_dev_desc_t *dev_desc = NULL;
+			struct mmc *mmc = find_mmc_device(dev);
+
+			dev_desc = get_dev("mmc", dev);
+
+			if (NULL == dev_desc) {
+				printf("** Block device MMC %d not supported\n", dev-1);
+				break;
+			}
+
+			mmc_init(mmc);
+
+			if (get_partition_info(dev_desc,
+					CONFIG_ANDROID_CACHE_PARTITION_MMC,
+					&info)) {
+				printf("** Bad partition %d **\n",
+					CONFIG_ANDROID_CACHE_PARTITION_MMC);
+				break;
+			}
+
+			part_length = ext2fs_set_blk_dev(dev_desc,
+					CONFIG_ANDROID_CACHE_PARTITION_MMC);
+			if (part_length == 0) {
+				printf("** Bad partition - mmc %d:%d **\n", dev-1,
+					CONFIG_ANDROID_CACHE_PARTITION_MMC);
+				ext2fs_close();
+				break;
+			}
+
+			if (!ext2fs_mount(part_length)) {
+				printf("** Bad ext2 partition or "
+					"disk - mmc %d:%d **\n", dev-1,
+					CONFIG_ANDROID_CACHE_PARTITION_MMC);
+				ext2fs_close();
+				break;
+			}
+
+			filelen = ext2fs_open(CONFIG_ANDROID_RECOVERY_CMD_FILE);
+
+			ext2fs_close();
+		}
+		break;
+	default:
+		return 0;
+		break;
+	}
+
+	return (filelen > 0) ? 1 : 0;
 }
 #endif
 
 int board_late_init(void)
 {
-	#ifdef CONFIG_I2C_MXC
-	setup_i2c(CONFIG_SYS_I2C_PORT);
-	i2c_bus_recovery();
-	setup_pmic_voltages();
-	#endif
 	return 0;
 }
 
@@ -1292,23 +1352,12 @@ static int phy_write(char *devname, unsigned char addr, unsigned char reg,
 
 int mx6_rgmii_rework(char *devname, int phy_addr)
 {
-	unsigned short val;
-
-	/* To enable AR8031 ouput a 125MHz clk from CLK_25M */
-	phy_write(devname, phy_addr, 0xd, 0x7);
-	phy_write(devname, phy_addr, 0xe, 0x8016);
-	phy_write(devname, phy_addr, 0xd, 0x4007);
-	phy_read(devname, phy_addr, 0xe, &val);
-
-	val &= 0xffe3;
-	val |= 0x18;
-	phy_write(devname, phy_addr, 0xe, val);
-
-	/* introduce tx clock delay */
-	phy_write(devname, phy_addr, 0x1d, 0x5);
-	phy_read(devname, phy_addr, 0x1e, &val);
-	val |= 0x0100;
-	phy_write(devname, phy_addr, 0x1e, val);
+	phy_write(devname, phy_addr, 0x9, 0x1c00);
+	phy_write(devname, phy_addr, 0xb, 0x8105);
+	phy_write(devname, phy_addr, 0xc, 0x00);
+	phy_write(devname, phy_addr, 0xb, 0x8104);
+	phy_write(devname, phy_addr, 0xc, 0xf0f0);
+	phy_write(devname, phy_addr, 0xb, 0x0104);
 
 	return 0;
 }
@@ -1356,37 +1405,6 @@ iomux_v3_cfg_t enet_pads[] = {
 
 void enet_board_init(void)
 {
-	unsigned int reg;
-#if defined CONFIG_MX6Q
-	iomux_v3_cfg_t enet_reset =
-			(_MX6Q_PAD_ENET_CRS_DV__GPIO_1_25 &
-			~MUX_PAD_CTRL_MASK)           |
-			 MUX_PAD_CTRL(0x88);
-#elif defined CONFIG_MX6DL
-	iomux_v3_cfg_t enet_reset =
-			(MX6DL_PAD_ENET_CRS_DV__GPIO_1_25 &
-			~MUX_PAD_CTRL_MASK)           |
-			 MUX_PAD_CTRL(0x88);
-#endif
-
-	mxc_iomux_v3_setup_multiple_pads(enet_pads,
-			ARRAY_SIZE(enet_pads));
-	mxc_iomux_v3_setup_pad(enet_reset);
-
-	/* phy reset: gpio1-25 */
-	reg = readl(GPIO1_BASE_ADDR + 0x0);
-	reg &= ~0x2000000;
-	writel(reg, GPIO1_BASE_ADDR + 0x0);
-
-	reg = readl(GPIO1_BASE_ADDR + 0x4);
-	reg |= 0x2000000;
-	writel(reg, GPIO1_BASE_ADDR + 0x4);
-
-	udelay(500);
-
-	reg = readl(GPIO1_BASE_ADDR + 0x0);
-	reg |= 0x2000000;
-	writel(reg, GPIO1_BASE_ADDR + 0x0);
 }
 #endif
 
@@ -1454,7 +1472,21 @@ int checkboard(void)
 
 void udc_pins_setting(void)
 {
+	int reg;
+
 	mxc_iomux_v3_setup_pad(MX6X_IOMUX(PAD_GPIO_1__USBOTG_ID));
+	mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_D31__GPIO_3_31);
+	//IOMUX_PAD(0x03e4, 0x00d0, 5, 0x0000, 0, 0) | MUX_PAD_CTRL(NO_PAD_CTRL) = 040000 5 000 3e4 0d0
+
+	reg = readl(GPIO3_BASE_ADDR+4);
+	reg |= (1 << 31);
+	writel(reg, GPIO3_BASE_ADDR+4);
+
+	reg = readl(GPIO3_BASE_ADDR);
+	reg |= (1 << 31);
+	writel(reg, GPIO3_BASE_ADDR);
+
+#if 0
 	mxc_iomux_v3_setup_pad(MX6X_IOMUX(PAD_KEY_ROW4__GPIO_4_15));
 	if (mx6_board_is_reva())
 		mxc_iomux_v3_setup_pad(MX6X_IOMUX(PAD_KEY_COL4__GPIO_4_14));
@@ -1465,19 +1497,95 @@ void udc_pins_setting(void)
 	/* set USB_H1_POWER to 1 */
 	if (mx6_board_is_reva())
 		gpio_direction_output(USB_H1_POWER, 1);
+#endif
 
-	mxc_iomux_set_gpr_register(1, 13, 1, 0);
+	mxc_iomux_set_gpr_register(1, 13, 1, 1);
 
 }
 #endif
 
 
-
-void func_27800ebc(int a)
+void func_2780169c()
 {
+	int reg;
 
+	reg = readl(GPIO2_BASE_ADDR);
+	reg &= ~(1 << 5);
+	writel(reg, GPIO2_BASE_ADDR);
+
+	reg = readl(GPIO1_BASE_ADDR);
+	reg &= ~(1 << 8);
+	writel(reg, GPIO1_BASE_ADDR);
+
+	imx_pwm_disable(pwm);
 }
 
 
+void func_27800ebc(int a)
+{
+	int reg;
 
+	mxc_iomux_v3_setup_pad(MX6Q_PAD_GPIO_18__GPIO_7_13);
+	//IOMUX_PAD(0x0620, 0x0250, 5, 0x0000, 0, 0) | MUX_PAD_CTRL(NO_PAD_CTRL) = 040000 5 000 620 250
+
+	reg = readl(GPIO7_BASE_ADDR+4);
+	reg |= (1 << 13);
+	writel(reg, GPIO7_BASE_ADDR+4);
+
+	reg = readl(GPIO7_BASE_ADDR);
+	if (a)
+		reg |= (1 << 13);
+	else
+		reg &= ~(1 << 13);
+	writel(reg, GPIO7_BASE_ADDR);
+}
+
+
+int func_27800de8()
+{
+	int reg;
+
+	mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_D16__GPIO_3_16);
+	//IOMUX_PAD(0x03a4, 0x0090, 5, 0x0000, 0, 0) | MUX_PAD_CTRL(NO_PAD_CTRL) = 040000 5 000 3a4 090
+
+	reg = readl(GPIO3_BASE_ADDR+4);
+	reg &= ~(1 << 16);
+	writel(reg, GPIO3_BASE_ADDR+4);
+
+	mxc_iomux_v3_setup_pad(MX6Q_PAD_EIM_D20__GPIO_3_20);
+	//IOMUX_PAD(0x03b4, 0x00a0, 5, 0x0000, 0, 0) | MUX_PAD_CTRL(NO_PAD_CTRL) = 040000 5 000 3b4 0a0
+
+	reg = readl(GPIO3_BASE_ADDR+4);
+	reg &= ~(1 << 20);
+	writel(reg, GPIO3_BASE_ADDR+4);
+
+	return 0;
+}
+
+
+int func_27800da4()
+{
+	int reg;
+	int res;
+
+	reg = readl(GPIO3_BASE_ADDR);
+
+	if ((reg & 0x110000) == 0x110000)
+		return 0;
+
+	reg = readl(GPIO3_BASE_ADDR);
+
+	if (reg & 0x10000)
+		res = 0;
+	else
+		res = 2;
+
+	if (reg & 0x100000)
+		return res;
+
+	if (res)
+		return 6;
+	else
+		return 4;
+}
 

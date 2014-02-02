@@ -142,9 +142,11 @@ int cleanup_before_linux(void)
 	clear_mfgmode_mem();
 #endif
 
+#if 0
 #ifdef CONFIG_VIDEO_MX5
 	ipu_disable_channel(MEM_BG_SYNC);
 	ipu_uninit_channel(MEM_BG_SYNC);
+#endif
 #endif
 
 	/*

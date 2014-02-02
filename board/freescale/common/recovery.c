@@ -69,8 +69,15 @@ int check_key_pressing(void)
 }
 #else
 /* If not using mxc keypad, currently we will detect power key on board */
-int check_key_pressing(void)
+static int check_key_pressing(void)
 {
+	puts("check key.....\015\n");
+	func_27800de8();
+	if (func_27800da4() & 2)
+	{
+		puts("pressed vol+ and vol- Recovery command file founded!\n");
+		return 1;
+	}
 	return 0;
 }
 #endif
@@ -79,7 +86,7 @@ extern struct reco_envs supported_reco_envs[];
 
 void setup_recovery_env(void)
 {
-	char *env, *boot_cmd;
+	char *env, *boot_cmd, *boot_args;
 	int bootdev = get_boot_device();
 
 	boot_cmd = supported_reco_envs[bootdev].cmd;
@@ -89,11 +96,22 @@ void setup_recovery_env(void)
 		return;
 	}
 
+#if 1
+	boot_args = supported_reco_envs[bootdev].args;
+#endif
+
 	printf("setup env for recovery..\n");
 
+#if 0
 	env = getenv("bootcmd_android_recovery");
 	if (!env)
 		setenv("bootcmd_android_recovery", boot_cmd);
+#else
+	setenv("bootcmd_android_recovery", boot_cmd);
+#if 1
+	setenv("bootargs", boot_args);
+#endif
+#endif
 	setenv("bootcmd", "run bootcmd_android_recovery");
 }
 
@@ -106,4 +124,6 @@ void check_recovery_mode(void)
 		puts("Recovery command file founded!\n");
 		setup_recovery_env();
 	}
+	else
+		puts(" normal boot...\015\n");
 }

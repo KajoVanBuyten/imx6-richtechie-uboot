@@ -112,8 +112,8 @@
 #define CONFIG_LOADADDR		0x10800000	/* loadaddr env var */
 #define CONFIG_RD_LOADADDR	0x10c00000
 
-#define CONFIG_BOOTARGS         "console=ttymxc3,115200 rdinit=/linuxrc"
-#define CONFIG_BOOTCOMMAND      "bootm 0x10800000 0x10c00000"
+#define CONFIG_BOOTARGS         "console=ttymxc3,115200 androidboot.console=ttymxc3 init=/init rw video=mxcfb0:dev=ldb,LDB-XGA if=RGB666 bpp=16 video=mxcfb1:dev=hdmi,1920x1080M@60 fbmem=15M,28M vmalloc=400M enable_wait_mode=off"
+#define CONFIG_BOOTCOMMAND      "booti mmc1"
 
 #define	CONFIG_EXTRA_ENV_SETTINGS					\
 		"netdev=eth0\0"						\
@@ -206,13 +206,13 @@
 	#define CONFIG_IMX_MMC
 	#define CONFIG_SYS_FSL_USDHC_NUM        2
 	#define CONFIG_SYS_FSL_ESDHC_ADDR       0
-	#define CONFIG_SYS_MMC_ENV_DEV  2
+	#define CONFIG_SYS_MMC_ENV_DEV  1 //(dev0 = mmc3 (external), dev1 = mmc4 (internal))
 	#define CONFIG_DOS_PARTITION	1
 	#define CONFIG_CMD_FAT		1
 	#define CONFIG_CMD_EXT2		1
 
 	/* detect whether SD1, 2, 3, or 4 is boot device */
-	#define CONFIG_DYNAMIC_MMC_DEVNO
+	//#define CONFIG_DYNAMIC_MMC_DEVNO
 
 	/* SD3 is 8 bit */
 	#define CONFIG_MMC_8BIT_PORTS   0x4
@@ -281,7 +281,7 @@
 #define CONFIG_SYS_NO_FLASH
 
 /* Monitor at beginning of flash */
-//#define CONFIG_FSL_ENV_IN_MMC
+#define CONFIG_FSL_ENV_IN_MMC
 /* #define CONFIG_FSL_ENV_IN_NAND */
 /* #define CONFIG_FSL_ENV_IN_SATA */
 
@@ -331,14 +331,10 @@
 	#define IMX_PWM2_BASE    PWM2_BASE_ADDR
 #endif
 
-#if 0
-#define CONFIG_ANDROID_RECOVERY
-#define CONFIG_ANDROID_RECOVERY_BOOTARGS_MMC NULL
-#define CONFIG_ANDROID_RECOVERY_BOOTCMD_MMC  \
-	"booti mmc2 recovery"
-#endif
+#define CONFIG_USB_DEVICE
+#define CONFIG_IMX_UDC		       1
 
-#if 0
+#if 1
 #define CONFIG_FASTBOOT		       1
 #define CONFIG_FASTBOOT_STORAGE_EMMC_SATA
 #define CONFIG_FASTBOOT_VENDOR_ID      0x18d1
@@ -353,9 +349,25 @@
 #define CONFIG_FASTBOOT_TRANSFER_BUF	0x2c000000
 #define CONFIG_FASTBOOT_TRANSFER_BUF_SIZE 0x14000000 /* 320M byte */
 
+#define CONFIG_CMD_BOOTI
+#define CONFIG_ANDROID_RECOVERY
+
 #define CONFIG_ANDROID_BOOT_PARTITION_MMC 1
 #define CONFIG_ANDROID_SYSTEM_PARTITION_MMC 5
 #define CONFIG_ANDROID_RECOVERY_PARTITION_MMC 2
+#define CONFIG_ANDROID_CACHE_PARTITION_MMC 6
+
+
+#define CONFIG_ANDROID_RECOVERY_BOOTARGS_MMC \
+	"console=ttymxc3,115200 video=mxcfb0:dev=ldb,LDB-XGA video=mxcfb1:dev=hdmi,1920x1080M@60 fbmem=28M,28M root=/dev/mmcblk1p2 rootdelay=5"
+#define CONFIG_ANDROID_RECOVERY_BOOTCMD_MMC  \
+	"mmc dev 0; fatload mmc 0:1 0x10800000 uimage; bootm"
+#define CONFIG_ANDROID_RECOVERY_CMD_FILE "/recovery/command"
+
 #endif
+
+#define CONFIG_MXC_FEC
+
+#define CONFIG_CMD_IMX_DOWNLOAD_MODE
 
 #endif				/* __CONFIG_H */

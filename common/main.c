@@ -405,6 +405,8 @@ void main_loop (void)
 # ifndef CONFIG_SYS_HUSH_PARSER
 		run_command (s, 0);
 # else
+		func_2780169c();
+
 		parse_string_outer(s, FLAG_PARSE_SEMICOLON |
 				    FLAG_EXIT_FROM_LOOP);
 # endif
@@ -440,6 +442,8 @@ void main_loop (void)
 	 * Main Loop for Monitor Command Processing
 	 */
 #ifdef CONFIG_SYS_HUSH_PARSER
+	func_2780169c();
+
 	parse_file_outer();
 	/* This point is never reached */
 	for (;;);
